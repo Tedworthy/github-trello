@@ -27,10 +27,6 @@ module GithubTrello
         # Get relevant HTTP object for commit author
         http = http_users[commit["author"]["name"]]
         next unless http
-        
-        puts "User committed: '#{commit["author"]["name"]}'"
-        puts "HTTP object: #{http}"
-        puts "Payload: #{payload}"
 
         # Figure out the card short id
         match = commit["message"].match(/((case|card|close|archive|fix)e?s? \D?([0-9]+))/i)

@@ -26,10 +26,6 @@ module GithubTrello
 
     private
     def http_request(method, request_path, args={})
-      puts "--- HTTP Request ---"
-      puts "API key = #{@api_key}"
-      puts "OAuth token = #{@token}"
-
       request_path << "?"
       args[:params] ||= {}
       args[:params][:key] = @api_key
