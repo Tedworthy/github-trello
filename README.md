@@ -17,7 +17,7 @@ On the first run, it will create an empty configuration file for you that you wi
 
 You will need to get your api key and OAuth token with read/write access that won't expire for this to work. You can either use your own account, or create a separate deployment one for this.
 
-Go to https://trello.com/1/appKey/generate to get your key, then go to _https://trello.com/1/authorize?response_type=token&name=Trello+Github+Integration&scope=read,write&expiration=never&key=[your-key-here]_ replacing __[your-key-here]__ with the key Trello gave you. Authorize the request and then add the token and key to your trello.yml file.
+Go to https://trello.com/1/appKey/generate to get your key, then go to https://trello.com/1/authorize?response_type=token&name=Trello+Github+Integration&scope=read,write&expiration=never&key=[your-key-here] replacing __[your-key-here]__ with the key Trello gave you. Authorize the request and then grab the 64 character token it gives you, before adding that token and the key you used previously to your trello.yml file.
 
 You can get the board id from the URL, for example https://trello.com/board/trello-development/4d5ea62fd76aa1136000000c the board id is _4d5ea62fd76aa1136000000ca_.
 
