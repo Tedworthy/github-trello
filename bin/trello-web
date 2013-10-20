@@ -16,7 +16,7 @@ Vegas::Runner.new(GithubTrello::Server, "trello-web", {
       root_dir = File.expand_path(File.dirname(__FILE__) + "/../")
       sample_config_path = root_dir + "sample_config.yml"
       File.open(path, "w+") do |f|
-        f.write(File.read(sample_config_path)
+        f.write(File.read(sample_config_path))
       end
 
       exit
