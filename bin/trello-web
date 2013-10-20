@@ -14,7 +14,7 @@ Vegas::Runner.new(GithubTrello::Server, "trello-web", {
       puts "[WARNING] No configuration found at #{path}."
       puts "We've generated an example one for you, but you need to configure it still."
       root_dir = File.expand_path(File.dirname(__FILE__) + "/../")
-      sample_config_path = root_dir + "sample_config.yml"
+      sample_config_path = root_dir + "/sample_config.yml"
       File.open(path, "w+") do |f|
         f.write(File.read(sample_config_path))
       end
