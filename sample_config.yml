@@ -1,20 +1,50 @@
-oauth_token: [token]
-api_key: [key]
+#### Posthook ####
+
+# Mapping of Git user full names to Trello authentication.
+# - replace [user name] with the Git user's full name
+# - replace [token] with the corresponding Trello OAuth token
+# - replace [key] with the corresponding Trello API key
+users:
+  [user name]:
+    oauth_token: [token]
+    api_key: [key]
+
+# Mapping of Git repo names to Trello board IDs.
+# - replace [repo name] with the full repository name
+# - replace [board id] with the corresponding Trello board ID
 board_ids:
   [repo name]: [board id]
+
+# Trello card movement configuration. Referring to a Trello card in a git
+# commit will move it to a Trello list. The words 'case' or 'card' trigger the
+# movement in on_start, whereas the words 'close' or 'fix' trigger the movement
+# in on_close.
+# - replace [repo name] with the full repository name
+# - replace [list id] with the Trello list ID to move cards into
+# - replace [archive] with true or false (true archives the moving card)
 on_start:
-  move_to: [list id]
-  archive: true
-on_close:
-  move_to: [list id]
-  archive: true
-# Alternatively, you can specify move_to as a hash of repo name -> list id
-on_close/on_start:
   move_to:
     [repo name]: [list id]
+  archive: [archive]
+on_close:
+  move_to:
+    [repo name]: [list id]
+  archive: [archive]
 
-# See README for deployment usage
+#### Deployment ####
+
+# Trello authentication to use when deploying.
+# - replace [token] with the Trello OAuth token
+# - replace [key] with the Trello API key
+deploy_oauth_token: [token]
+deploy_api_key: [key]
+
+# Trello card movement configuration. When deploying, cards are moved to the
+# specified Trello list.
+# - replace [repo name] with the full repository name
+# - replace [list id] with the Trello list ID to move cards into
+# - replace [archive] with true or false (true archives the moving card)
 on_deploy:
   move_to:
     [repo name]: [list id]
-  archive: true
+  archive: [archive]

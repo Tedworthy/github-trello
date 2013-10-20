@@ -6,9 +6,9 @@ require "github-trello/http"
 module GithubTrello
   class Server < Sinatra::Base
     post "/posthook" do
-      config, http = self.class.config, self.class.http
+      config, http_users = self.class.config, self.class.http_users
 
-      payload = JSON.parse(params[:payload])
+      payload = JSON.parse(request.body.read)
 
       board_id = config["board_ids"][payload["repository"]["name"]]
       unless board_id
@@ -24,24 +24,32 @@ module GithubTrello
       end
 
       payload["commits"].each do |commit|
+        # Get relevant HTTP object for commit author
+        http = http_users[commit["author"]["name"]]
+        next unless http
+        
+        puts "User committed: '#{commit["author"]["name"]}'"
+        puts "HTTP object: #{http}"
+        puts "Payload: #{payload}"
+
         # Figure out the card short id
         match = commit["message"].match(/((case|card|close|archive|fix)e?s? \D?([0-9]+))/i)
         next unless match and match[3].to_i > 0
 
-        results = http.get_card(board_id, match[3].to_i)
-        unless results
+        card = http.get_card(board_id, match[3].to_i)
+        unless card
           puts "[ERROR] Cannot find card matching ID #{match[3]}"
           next
         end
 
-        results = JSON.parse(results)
+        card = JSON.parse(card)
 
         # Add the commit comment
         message = "#{commit["author"]["name"]}: #{commit["message"]}\n\n[#{branch}] #{commit["url"]}"
         message.gsub!(match[1], "")
         message.gsub!(/\(\)$/, "")
 
-        http.add_comment(results["id"], message)
+        http.add_comment(card["id"], message)
 
         # Determine the action to take
         update_config = case match[2].downcase
@@ -61,16 +69,16 @@ module GithubTrello
           move_to = update_config["move_to"]
         end
 
-        unless results["idList"] == move_to
+        unless card["idList"] == move_to
           to_update[:idList] = move_to
         end
 
-        if !results["closed"] and update_config["archive"]
+        if !card["closed"] and update_config["archive"]
           to_update[:closed] = true
         end
 
         unless to_update.empty?
-          http.update_card(results["id"], to_update)
+          http.update_card(card["id"], to_update)
         end
       end
 
@@ -78,7 +86,7 @@ module GithubTrello
     end
 
     post "/deployed/:repo" do
-      config, http = self.class.config, self.class.http
+      config, http_deploy = self.class.config, self.class.http_deploy
       if !config["on_deploy"]
         raise "Deploy triggered without a on_deploy config specified"
       elsif !config["on_close"] or !config["on_close"]["move_to"]
@@ -102,9 +110,9 @@ module GithubTrello
         target_board = config["on_close"]["move_to"]
       end
 
-      cards = JSON.parse(http.get_cards(target_board))
+      cards = JSON.parse(http_deploy.get_cards(target_board))
       cards.each do |card|
-        http.update_card(card["id"], to_update)
+        http_deploy.update_card(card["id"], to_update)
       end
 
       ""
@@ -116,10 +124,17 @@ module GithubTrello
 
     def self.config=(config)
       @config = config
-      @http = GithubTrello::HTTP.new(config["oauth_token"], config["api_key"])
+      @http_users = Hash.new
+      config["users"].each do |user, auth|
+        puts user
+        puts auth
+        @http_users[user] = GithubTrello::HTTP.new(auth["oauth_token"], auth["api_key"])
+      end
+      @http_deploy = GithubTrello::HTTP.new(config["deploy_oauth_token"], config["deploy_api_key"])
     end
 
     def self.config; @config end
-    def self.http; @http end
+    def self.http_users; @http_users end
+    def self.http_deploy; @http_deploy end
   end
 end
