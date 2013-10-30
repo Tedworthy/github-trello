@@ -10,12 +10,14 @@ module GithubTrello
 
       payload = JSON.parse(request.body.read)
 
+      # Get the Trello board ID for the repository
       board_id = config["board_ids"][payload["repository"]["name"]]
       unless board_id
         puts "[ERROR] Commit from #{payload["repository"]["name"]} but no board_id entry found in config"
         return
       end
 
+      # Check for blacklist/whitelist settings
       branch = payload["ref"].gsub("refs/heads/", "")
       if config["blacklist_branches"] and config["blacklist_branches"].include?(branch)
         return
@@ -28,53 +30,62 @@ module GithubTrello
         http = http_users[commit["author"]["name"]]
         next unless http
 
-        # Figure out the card short id
-        match = commit["message"].match(/((case|card|close|archive|fix)e?s? \D?([0-9]+))/i)
-        next unless match and match[3].to_i > 0
+        # Check for matches of commands in the set of possible actions
+        matches = commit["message"].scan(/((case|card|closes?|archives?|fix(es)?|starts?|doing|done) ([0-9]+))/i)
+        next if matches.empty?
 
-        card = http.get_card(board_id, match[3].to_i)
-        unless card
-          puts "[ERROR] Cannot find card matching ID #{match[3]}"
-          next
-        end
+        matches.each do |match|
+          # Get portions of the match
+          action = match[1]
+          card_no = match[3].to_i
 
-        card = JSON.parse(card)
+          # Check that the card specified exists in Trello
+          card = http.get_card(board_id, card_no)
+          unless card
+            puts "[ERROR] Cannot find card matching ID #{card_no}"
+            next
+          end
 
-        # Add the commit comment
-        message = "#{commit["author"]["name"]}: #{commit["message"]}\n\n[#{branch}] #{commit["url"]}"
-        message.gsub!(match[1], "")
-        message.gsub!(/\(\)$/, "")
+          card = JSON.parse(card)
 
-        http.add_comment(card["id"], message)
+          # Add the commit comment
+          message = "#{commit["author"]["name"]}: #{commit["message"]}\n\n[#{branch}] #{commit["url"]}"
+          message.gsub!(/\(\)$/, "")
+          matches.each do |m|
+            message.gsub!(m[0], "")
+          end
 
-        # Determine the action to take
-        update_config = case match[2].downcase
-          when "case", "card" then config["on_start"]
-          when "close", "fix" then config["on_close"]
-          when "archive" then {:archive => true}
-        end
+          http.add_comment(card["id"], message)
 
-        next unless update_config.is_a?(Hash)
+          # Determine the action to take
+          update_config = case action.downcase
+            when "case", "card", "doing", "start", "starts" then config["on_start"]
+            when "close", "fix", "closes", "fixes", "done" then config["on_close"]
+            when "archive", "archives" then {:archive => true}
+          end
 
-        # Modify it if needed
-        to_update = {}
+          next unless update_config.is_a?(Hash)
 
-        if update_config["move_to"].is_a?(Hash)
-          move_to = update_config["move_to"][payload["repository"]["name"]]
-        else
-          move_to = update_config["move_to"]
-        end
+          # Modify it if needed
+          to_update = {}
 
-        unless card["idList"] == move_to
-          to_update[:idList] = move_to
-        end
+          if update_config["move_to"].is_a?(Hash)
+            move_to = update_config["move_to"][payload["repository"]["name"]]
+          else
+            move_to = update_config["move_to"]
+          end
 
-        if !card["closed"] and update_config["archive"]
-          to_update[:closed] = true
-        end
+          unless card["idList"] == move_to
+            to_update[:idList] = move_to
+          end
 
-        unless to_update.empty?
-          http.update_card(card["id"], to_update)
+          if !card["closed"] and update_config["archive"]
+            to_update[:closed] = true
+          end
+
+          unless to_update.empty?
+            http.update_card(card["id"], to_update)
+          end
         end
       end
 
